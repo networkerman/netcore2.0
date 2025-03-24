@@ -1,69 +1,68 @@
-# Welcome to your Lovable project
+# CPaaS Platform with Template Management and CTWA
 
-## Project info
+A comprehensive CPaaS (Communications Platform as a Service) platform that combines template management and Click-to-WhatsApp Ads (CTWA) functionality.
 
-**URL**: https://lovable.dev/projects/bb9f8e6d-da92-4291-8f16-fbc7f1e52a86
+## Features
 
-## How can I edit this code?
+### Template Management
+- Keyword-based auto-reply system
+- Multi-language support
+- Keyword variations
+- Quick reply buttons
+- Default response handling
 
-There are several ways of editing your application.
+### Click-to-WhatsApp Ads (CTWA)
+- Integration with WhatsApp Business API
+- Ad campaign management
+- Click tracking and analytics
+- Custom landing pages
 
-**Use Lovable**
+## Project Structure
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/bb9f8e6d-da92-4291-8f16-fbc7f1e52a86) and start prompting.
+```
+src/
+├── components/
+│   └── KeywordConfigManager.tsx    # UI for managing keyword configurations
+├── lib/
+│   ├── types.ts                    # TypeScript type definitions
+│   └── services/
+│       └── auto-reply.service.ts   # Core auto-reply functionality
+```
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+1. Clone the repository:
+```bash
+git clone https://github.com/networkerman/netcore2.0.git
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. Install dependencies:
+```bash
+npm install
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Technology Stack
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
 - React
-- shadcn-ui
+- TypeScript
 - Tailwind CSS
+- WhatsApp Business API
+- (Coming soon) Supabase
+- (Coming soon) AI Integration
 
-## How can I deploy this project?
+## Contributing
 
-Simply open [Lovable](https://lovable.dev/projects/bb9f8e6d-da92-4291-8f16-fbc7f1e52a86) and click on Share -> Publish.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## I want to use a custom domain - is that possible?
+## License
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+This project is licensed under the MIT License - see the LICENSE file for details.
