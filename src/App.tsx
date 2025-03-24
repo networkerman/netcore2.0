@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,7 @@ import AdPerformance from "./pages/AdPerformance";
 import Conversations from "./pages/Conversations";
 import Segmentation from "./pages/Segmentation";
 import Settings from "./pages/Settings";
+import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +26,7 @@ const App = () => (
             <Route path="ad-performance" element={<AdPerformance />} />
             <Route path="conversations" element={<Conversations />} />
             <Route path="segmentation" element={<Segmentation />} />
+            <Route path="templates" element={<Templates />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />

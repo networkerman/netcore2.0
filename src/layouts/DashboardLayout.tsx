@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { 
@@ -9,7 +8,8 @@ import {
   Settings, 
   ChevronLeft, 
   ChevronRight,
-  Menu
+  Menu,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,11 @@ const sidebarItems = [
     title: "Segmentation",
     icon: <Users className="w-5 h-5" />,
     path: "/segmentation"
+  },
+  {
+    title: "Templates",
+    icon: <FileText className="w-5 h-5" />,
+    path: "/templates"
   },
   {
     title: "Settings",
