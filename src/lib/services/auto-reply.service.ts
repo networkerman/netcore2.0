@@ -19,99 +19,49 @@ export class AutoReplyService {
       maxResponseLength: 1024
     };
     this.optService = new OptService();
-    this.initializeDefaultConfigs();
+    this.initialize();
     this.loadConfigs();
     this.loadSettings();
   }
 
-  private initializeDefaultConfigs() {
-    // Default configuration for opt-in/opt-out
-    this.defaultConfig = {
-      id: 'default',
-      keyword: 'default',
-      variations: [],
-      responses: [
-        {
-          id: 'default-response',
-          text: 'Thank you for your message. We will get back to you soon.',
-          language: 'English'
-        }
-      ],
-      isDefault: true
-    };
-
-    // Add default Stop and Start configurations
-    const stopConfig: KeywordConfig = {
-      id: 'stop',
-      keyword: 'stop',
-      variations: [
-        { id: 'stop-hi', text: 'रोकें' },
-        { id: 'stop-ta', text: 'நிறுத்த' },
-        { id: 'stop-zh', text: '停止' },
-        { id: 'stop-th', text: 'หยุด' }
-      ],
-      responses: [
-        {
-          id: 'stop-response-en',
-          text: "You've opted out!",
-          language: 'English',
-          buttons: [{
-            id: 'optin-btn',
-            label: 'Opt-in',
-            action: 'optin'
-          }]
-        },
-        {
-          id: 'stop-response-hi',
-          text: 'आपने ऑप्ट-आउट कर लिया!',
-          language: 'Hindi',
-          buttons: [{
-            id: 'optin-btn-hi',
-            label: 'ऑप्ट-इन',
-            action: 'optin'
-          }]
-        }
-      ],
-      isDefault: true,
-      isEnabled: true
-    };
-
-    const startConfig: KeywordConfig = {
-      id: 'start',
-      keyword: 'start',
-      variations: [
-        { id: 'start-hi', text: 'शुरू' },
-        { id: 'start-ta', text: 'தொடங்க' },
-        { id: 'start-zh', text: '开始' },
-        { id: 'start-th', text: 'เริ่มต้น' }
-      ],
-      responses: [
-        {
-          id: 'start-response-en',
-          text: 'Welcome back!',
-          language: 'English',
-          buttons: [{
-            id: 'continue-btn',
-            label: 'Continue',
-            action: 'optout'
-          }]
-        },
-        {
-          id: 'start-response-hi',
-          text: 'वापस आने पर स्वागत है!',
-          language: 'Hindi',
-          buttons: [{
-            id: 'continue-btn-hi',
-            label: 'जारी रखें',
-            action: 'optout'
-          }]
-        }
-      ],
-      isDefault: true,
-      isEnabled: true
-    };
-
-    this.keywordConfigs = [stopConfig, startConfig];
+  initialize() {
+    // Load default configurations
+    this.keywordConfigs = [
+      {
+        id: 'stop',
+        keyword: 'stop',
+        variations: [
+          { id: 'stop1', text: 'stop' },
+          { id: 'stop2', text: 'unsubscribe' },
+          { id: 'stop3', text: 'optout' }
+        ],
+        responses: [
+          {
+            id: 'stop_resp',
+            language: "English",
+            text: 'You have been unsubscribed from our messages. To subscribe again, send "start".',
+            buttons: []
+          }
+        ]
+      },
+      {
+        id: 'start',
+        keyword: 'start',
+        variations: [
+          { id: 'start1', text: 'start' },
+          { id: 'start2', text: 'subscribe' },
+          { id: 'start3', text: 'optin' }
+        ],
+        responses: [
+          {
+            id: 'start_resp',
+            language: "English",
+            text: 'Welcome! You are now subscribed to our messages. Send "stop" to unsubscribe.',
+            buttons: []
+          }
+        ]
+      }
+    ];
   }
 
   private loadConfigs() {

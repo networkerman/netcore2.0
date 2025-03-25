@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -27,7 +27,13 @@ const Settings = () => {
   const { toast } = useToast();
   const [metaIntegration, setMetaIntegration] = useState(true);
   const [googleIntegration, setGoogleIntegration] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
   const autoReplyService = new AutoReplyService();
+  
+  useEffect(() => {
+    // Initialize Auto Reply service
+    autoReplyService.initialize();
+  }, []);
   
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +56,8 @@ const Settings = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="auto-reply">Auto Reply</TabsTrigger>
