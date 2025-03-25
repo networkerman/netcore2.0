@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { KeywordConfig, Language, KeywordResponse, KeywordVariation, QuickReplyButton, AutoReplySettings } from '../lib/types';
 import { AutoReplyService } from '../lib/services/auto-reply.service';
+import { AIService } from '../lib/services/ai-service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash, Edit, Save, X } from 'lucide-react';
+import { Plus, Trash, Edit, Save, X, Wand2, MessageSquare } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 // Define available languages as a constant array
 const AVAILABLE_LANGUAGES: Language[] = [
@@ -46,8 +55,11 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
     maxButtons: 3,
     maxResponseLength: 1024
   });
+  const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
+  const [previewResponse, setPreviewResponse] = useState<KeywordResponse | null>(null);
 
   const autoReplyService = new AutoReplyService();
+  const aiService = new AIService();
 
   useEffect(() => {
     // Load initial configurations and settings
@@ -231,6 +243,54 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
     }
   };
 
+  const handleGenerateVariations = async (response: KeywordResponse) => {
+    if (!response.text.trim()) {
+      toast({
+        title: "No text to generate variations",
+        description: "Please enter some text first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingVariations(true);
+    try {
+      const variations = await aiService.generateVariations(
+        response.text,
+        response.language
+      );
+
+      if (variations.length > 0) {
+        const newVariations = variations.map((text, index) => ({
+          id: Date.now().toString() + index,
+          text
+        }));
+
+        if (selectedConfig) {
+          const updatedConfig = {
+            ...selectedConfig,
+            variations: [...selectedConfig.variations, ...newVariations]
+          };
+          setSelectedConfig(updatedConfig);
+          setConfigs(configs.map(c => c.id === selectedConfig.id ? updatedConfig : c));
+          onConfigUpdate?.(configs);
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error generating variations",
+        description: "Failed to generate variations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingVariations(false);
+    }
+  };
+
+  const handlePreviewResponse = (response: KeywordResponse) => {
+    setPreviewResponse(response);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -356,108 +416,130 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
 
                   <div className="space-y-4">
                     <Label>Responses</Label>
-                    {config.responses.map((response) => (
-                      <div key={response.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Select
-                            value={response.language}
-                            onValueChange={(value: Language) => {
-                              const updatedResponse = {
-                                ...response,
-                                language: value
-                              };
-                              setSelectedConfig({
-                                ...selectedConfig,
-                                responses: selectedConfig.responses.map(r =>
-                                  r.id === response.id ? updatedResponse : r
-                                )
-                              });
-                            }}
-                          >
-                            <SelectTrigger className="w-[200px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {AVAILABLE_LANGUAGES.map((lang) => (
-                                <SelectItem key={lang} value={lang}>
-                                  {lang}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingResponse(response)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={response.text}
-                          onChange={(e) => {
-                            const updatedResponse = {
-                              ...response,
-                              text: e.target.value
-                            };
-                            setSelectedConfig({
-                              ...selectedConfig,
-                              responses: selectedConfig.responses.map(r =>
-                                r.id === response.id ? updatedResponse : r
-                              )
-                            });
-                          }}
-                          placeholder="Enter response text"
-                          maxLength={settings.maxResponseLength}
-                        />
-                        {editingResponse?.id === response.id && (
-                          <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <Input
-                                value={newButton.label || ''}
-                                onChange={(e) => setNewButton({ ...newButton, label: e.target.value })}
-                                placeholder="Button label"
-                                maxLength={20}
-                              />
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Language</TableHead>
+                          <TableHead>Response</TableHead>
+                          <TableHead>Quick Reply Buttons</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {config.responses.map((response) => (
+                          <TableRow key={response.id}>
+                            <TableCell>
                               <Select
-                                value={newButton.action || 'custom'}
-                                onValueChange={(value: 'optin' | 'optout' | 'custom') =>
-                                  setNewButton({ ...newButton, action: value })
-                                }
+                                value={response.language}
+                                onValueChange={(value: Language) => {
+                                  const updatedResponse = {
+                                    ...response,
+                                    language: value
+                                  };
+                                  setSelectedConfig({
+                                    ...selectedConfig,
+                                    responses: selectedConfig.responses.map(r =>
+                                      r.id === response.id ? updatedResponse : r
+                                    )
+                                  });
+                                }}
                               >
                                 <SelectTrigger className="w-[150px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="custom">Custom</SelectItem>
-                                  <SelectItem value="optin">Opt-in</SelectItem>
-                                  <SelectItem value="optout">Opt-out</SelectItem>
+                                  {AVAILABLE_LANGUAGES.map((lang) => (
+                                    <SelectItem key={lang} value={lang}>
+                                      {lang}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
-                              <Button onClick={handleAddButton}>
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                onClick={() => setEditingResponse(null)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {response.buttons?.map((button) => (
-                                <span
-                                  key={button.id}
-                                  className="px-2 py-1 bg-gray-100 rounded text-sm"
+                            </TableCell>
+                            <TableCell>
+                              <Textarea
+                                value={response.text}
+                                onChange={(e) => {
+                                  const updatedResponse = {
+                                    ...response,
+                                    text: e.target.value
+                                  };
+                                  setSelectedConfig({
+                                    ...selectedConfig,
+                                    responses: selectedConfig.responses.map(r =>
+                                      r.id === response.id ? updatedResponse : r
+                                    )
+                                  });
+                                }}
+                                placeholder="Enter response text"
+                                maxLength={settings.maxResponseLength}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={newButton.label || ''}
+                                    onChange={(e) => setNewButton({ ...newButton, label: e.target.value })}
+                                    placeholder="Button label"
+                                    maxLength={20}
+                                  />
+                                  <Select
+                                    value={newButton.action || 'custom'}
+                                    onValueChange={(value: 'optin' | 'optout' | 'custom') =>
+                                      setNewButton({ ...newButton, action: value })
+                                    }
+                                  >
+                                    <SelectTrigger className="w-[150px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="custom">Custom</SelectItem>
+                                      <SelectItem value="optin">Opt-in</SelectItem>
+                                      <SelectItem value="optout">Opt-out</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Button onClick={handleAddButton}>
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {response.buttons?.map((button) => (
+                                    <span
+                                      key={button.id}
+                                      className="px-2 py-1 bg-gray-100 rounded text-sm"
+                                    >
+                                      {button.label} ({button.action})
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleGenerateVariations(response)}
+                                  disabled={isGeneratingVariations}
                                 >
-                                  {button.label} ({button.action})
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                                  <Wand2 className="h-4 w-4 mr-1" />
+                                  Generate Variations
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePreviewResponse(response)}
+                                >
+                                  <MessageSquare className="h-4 w-4 mr-1" />
+                                  Preview
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
 
                   <div className="flex justify-end gap-2">
@@ -478,6 +560,50 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
           ))}
         </CardContent>
       </Card>
+
+      {previewResponse && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Response Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label>Language</Label>
+                <p className="text-sm text-muted-foreground">{previewResponse.language}</p>
+              </div>
+              <div>
+                <Label>Message</Label>
+                <p className="text-sm">{previewResponse.text}</p>
+              </div>
+              {previewResponse.buttons && previewResponse.buttons.length > 0 && (
+                <div>
+                  <Label>Quick Reply Buttons</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {previewResponse.buttons.map((button) => (
+                      <Button
+                        key={button.id}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {button.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                onClick={() => setPreviewResponse(null)}
+                className="mt-4"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Close Preview
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }; 
