@@ -3,10 +3,12 @@ import { KeywordConfig, KeywordResponse, Language, MessageType } from '../types'
 export class AutoReplyService {
   private keywordConfigs: KeywordConfig[] = [];
   private defaultConfig?: KeywordConfig;
+  private readonly STORAGE_KEY = 'auto_reply_configs';
 
   constructor() {
     // Initialize with default configurations
     this.initializeDefaultConfigs();
+    this.loadConfigs();
   }
 
   private initializeDefaultConfigs() {
@@ -26,18 +28,40 @@ export class AutoReplyService {
     };
   }
 
+  private loadConfigs() {
+    try {
+      const savedConfigs = localStorage.getItem(this.STORAGE_KEY);
+      if (savedConfigs) {
+        this.keywordConfigs = JSON.parse(savedConfigs);
+      }
+    } catch (error) {
+      console.error('Error loading auto reply configs:', error);
+    }
+  }
+
+  private saveConfigs() {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.keywordConfigs));
+    } catch (error) {
+      console.error('Error saving auto reply configs:', error);
+    }
+  }
+
   public addKeywordConfig(config: KeywordConfig): void {
     this.keywordConfigs.push(config);
+    this.saveConfigs();
   }
 
   public removeKeywordConfig(configId: string): void {
     this.keywordConfigs = this.keywordConfigs.filter(config => config.id !== configId);
+    this.saveConfigs();
   }
 
   public updateKeywordConfig(config: KeywordConfig): void {
     const index = this.keywordConfigs.findIndex(c => c.id === config.id);
     if (index !== -1) {
       this.keywordConfigs[index] = config;
+      this.saveConfigs();
     }
   }
 
@@ -75,5 +99,16 @@ export class AutoReplyService {
 
   public getDefaultConfig(): KeywordConfig | undefined {
     return this.defaultConfig;
+  }
+
+  public isEnabled(): boolean {
+    return this.keywordConfigs.length > 0;
+  }
+
+  public setEnabled(enabled: boolean): void {
+    if (!enabled) {
+      this.keywordConfigs = [];
+      this.saveConfigs();
+    }
   }
 } 

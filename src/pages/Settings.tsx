@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -21,17 +20,31 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { KeywordConfigManager } from "@/components/KeywordConfigManager";
+import { AutoReplyService } from "@/lib/services/auto-reply.service";
 
 const Settings = () => {
   const { toast } = useToast();
   const [metaIntegration, setMetaIntegration] = useState(true);
   const [googleIntegration, setGoogleIntegration] = useState(false);
+  const autoReplyService = new AutoReplyService();
   
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     toast({
       title: "Settings saved",
       description: "Your changes have been saved successfully.",
+    });
+  };
+
+  const handleConfigUpdate = (configs: any[]) => {
+    // Save the updated configurations
+    configs.forEach(config => {
+      autoReplyService.updateKeywordConfig(config);
+    });
+    toast({
+      title: "Auto Reply settings updated",
+      description: "Your auto reply configurations have been saved.",
     });
   };
 
@@ -50,6 +63,7 @@ const Settings = () => {
           <TabsTrigger value="integrations">Ad Integrations</TabsTrigger>
           <TabsTrigger value="tracking">Conversion Tracking</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="auto-reply">Auto Reply</TabsTrigger>
         </TabsList>
         
         <TabsContent value="general" className="mt-4">
@@ -328,6 +342,35 @@ const Settings = () => {
                 </div>
                 
                 <Button type="button">Save Notification Settings</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="auto-reply" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Auto Reply Settings</CardTitle>
+              <CardDescription>
+                Configure automatic responses for incoming messages
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="enable-auto-reply" className="flex flex-col space-y-1">
+                    <span>Enable Auto Reply</span>
+                    <span className="font-normal text-sm text-muted-foreground">
+                      Automatically respond to messages based on keywords
+                    </span>
+                  </Label>
+                  <Switch id="enable-auto-reply" defaultChecked={true} />
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Keyword Configurations</h3>
+                  <KeywordConfigManager onConfigUpdate={handleConfigUpdate} />
+                </div>
               </div>
             </CardContent>
           </Card>
