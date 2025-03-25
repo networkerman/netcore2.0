@@ -9,17 +9,21 @@ export type Language =
   | "Portuguese" 
   | "French";
 
+export type MessageType = "text" | "quick_reply";
+
 export interface QuickReplyButton {
   id: string;
-  text: string;
+  label: string;
   action?: "optin" | "optout" | "custom";
+  value?: string;
 }
 
 export interface KeywordResponse {
   id: string;
   text: string;
   language: Language;
-  quickReplyButtons?: QuickReplyButton[];
+  buttons?: QuickReplyButton[];
+  variables?: string[];
 }
 
 export interface KeywordVariation {
@@ -33,9 +37,17 @@ export interface KeywordConfig {
   variations: KeywordVariation[];
   responses: KeywordResponse[];
   isDefault?: boolean;
+  isEnabled?: boolean;
 }
 
-export type MessageType = "received" | "sent";
+export interface AutoReplySettings {
+  isEnabled: boolean;
+  defaultLanguage: Language;
+  caseSensitive: boolean;
+  maxVariations: number;
+  maxButtons: number;
+  maxResponseLength: number;
+}
 
 export interface APIPayload {
   type: "optin" | "optout";
