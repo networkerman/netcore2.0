@@ -1,136 +1,64 @@
-import { useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  BarChart, 
-  MessageSquareText, 
-  Users, 
-  Settings, 
-  ChevronLeft, 
-  ChevronRight,
-  Menu,
-  FileText
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
+import React from 'react';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Users,
+  Settings,
+  FileText,
+  LineChart,
+  TestTube2
+} from 'lucide-react';
 
-const sidebarItems = [
-  {
-    title: "Dashboard",
-    icon: <LayoutDashboard className="w-5 h-5" />,
-    path: "/"
-  },
-  {
-    title: "Ad Performance",
-    icon: <BarChart className="w-5 h-5" />,
-    path: "/ad-performance"
-  },
-  {
-    title: "Conversations",
-    icon: <MessageSquareText className="w-5 h-5" />,
-    path: "/conversations"
-  },
-  {
-    title: "Segmentation",
-    icon: <Users className="w-5 h-5" />,
-    path: "/segmentation"
-  },
-  {
-    title: "Templates",
-    icon: <FileText className="w-5 h-5" />,
-    path: "/templates"
-  },
-  {
-    title: "Settings",
-    icon: <Settings className="w-5 h-5" />,
-    path: "/settings"
-  }
+const navigation = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Conversations', href: '/conversations', icon: MessageSquare },
+  { name: 'Segmentation', href: '/segmentation', icon: Users },
+  { name: 'Ad Performance', href: '/ad-performance', icon: LineChart },
+  { name: 'Templates', href: '/templates', icon: FileText },
+  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'QA Testing', href: '/qa', icon: TestTube2 },
 ];
 
-const DashboardLayout = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const isMobile = useIsMobile();
-
-  const SidebarContent = () => (
-    <div className={cn(
-      "h-full flex flex-col bg-sidebar border-r",
-      collapsed ? "w-[60px]" : "w-[240px]"
-    )}>
-      <div className="p-4 flex items-center justify-between border-b">
-        {!collapsed && (
-          <div className="font-bold text-lg text-sidebar-foreground">
-            CTWA Analytics
-          </div>
-        )}
-        {!isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto"
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-        )}
-      </div>
-      
-      <nav className="flex-1 p-2">
-        <ul className="space-y-1">
-          {sidebarItems.map((item) => (
-            <li key={item.title}>
-              <NavLink 
-                to={item.path} 
-                className={({ isActive }) => cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  isActive 
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground" 
-                    : "text-sidebar-foreground",
-                  collapsed && "justify-center"
-                )}
-              >
-                {item.icon}
-                {!collapsed && <span>{item.title}</span>}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <div className="p-4 border-t text-xs text-sidebar-foreground">
-        {!collapsed && <div>Netcore WhatsApp Module</div>}
-      </div>
-    </div>
-  );
+const DashboardLayout: React.FC = () => {
+  const location = useLocation();
 
   return (
-    <div className="flex h-screen w-full">
-      {isMobile ? (
-        <>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[240px]">
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
-          <main className="flex-1 overflow-auto pt-16 pb-4 px-4">
-            <Outlet />
-          </main>
-        </>
-      ) : (
-        <>
-          <SidebarContent />
-          <main className="flex-1 overflow-auto py-4 px-6">
-            <Outlet />
-          </main>
-        </>
-      )}
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="w-64 min-h-screen bg-white border-r">
+          <div className="p-4">
+            <h1 className="text-xl font-bold">ChatLinkage</h1>
+          </div>
+          <nav className="mt-4">
+            {navigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    'flex items-center px-4 py-2 text-sm font-medium',
+                    isActive
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  )}
+                >
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1">
+          <Outlet />
+        </div>
+      </div>
     </div>
   );
 };

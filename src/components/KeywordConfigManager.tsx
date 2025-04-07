@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash, Edit, Save, X, Wand2, MessageSquare } from 'lucide-react';
+import { Plus, Trash, Edit, Save, X, Wand2, MessageSquare, Settings } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // Define available languages as a constant array
 const AVAILABLE_LANGUAGES: Language[] = [
@@ -57,179 +65,170 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
   });
   const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
   const [previewResponse, setPreviewResponse] = useState<KeywordResponse | null>(null);
-
-  const autoReplyService = new AutoReplyService();
-  const aiService = new AIService();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [aiService] = useState(() => new AIService());
 
   useEffect(() => {
-    // Load initial configurations and settings
-    const initialConfigs = autoReplyService.getKeywordConfigs();
-    const initialSettings = autoReplyService.getSettings();
-    setConfigs(initialConfigs);
-    setSettings(initialSettings);
+    const initializeService = async () => {
+      try {
+        const service = AutoReplyService.getInstance();
+        await service.initialize();
+        setConfigs(service.getKeywordConfigs());
+        setSettings(service.getSettings());
+        setIsInitialized(true);
+      } catch (error) {
+        toast({
+          title: "Error initializing auto reply",
+          description: error instanceof Error ? error.message : "Failed to initialize auto reply service.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initializeService();
   }, []);
 
-  const handleAddConfig = () => {
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading auto reply settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleAddConfig = async () => {
     if (!newKeyword.trim()) {
       toast({
         title: "Invalid keyword",
-        description: "Please enter a keyword before adding.",
+        description: "Please enter a keyword.",
         variant: "destructive",
       });
       return;
     }
 
-    const newConfig: KeywordConfig = {
-      id: Date.now().toString(),
-      keyword: newKeyword.trim(),
-      variations: [],
-      responses: [{
+    try {
+      const service = AutoReplyService.getInstance();
+      const newConfig: KeywordConfig = {
         id: Date.now().toString(),
-        text: '',
-        language: selectedLanguage,
-        buttons: []
-      }],
-      isDefault: false,
-      isEnabled: true
-    };
+        keyword: newKeyword.trim(),
+        variations: [],
+        responses: [],
+        isEnabled: true
+      };
 
-    setConfigs([...configs, newConfig]);
-    setNewKeyword('');
-    onConfigUpdate?.([...configs, newConfig]);
-  };
-
-  const handleAddVariation = () => {
-    if (!selectedConfig || !newVariation.trim()) {
+      await service.addKeywordConfig(newConfig);
+      setConfigs(service.getKeywordConfigs());
+      setNewKeyword('');
       toast({
-        title: "Invalid variation",
-        description: "Please select a keyword and enter a variation.",
-        variant: "destructive",
+        title: "Keyword added",
+        description: "New keyword configuration has been added.",
       });
-      return;
-    }
-
-    if (selectedConfig.variations.length >= settings.maxVariations) {
-      toast({
-        title: "Maximum variations reached",
-        description: `Maximum ${settings.maxVariations} variations allowed per keyword.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const variation: KeywordVariation = {
-      id: Date.now().toString(),
-      text: newVariation.trim()
-    };
-
-    const updatedConfig = {
-      ...selectedConfig,
-      variations: [...selectedConfig.variations, variation]
-    };
-
-    setConfigs(configs.map(c => c.id === selectedConfig.id ? updatedConfig : c));
-    setSelectedConfig(updatedConfig);
-    setNewVariation('');
-    onConfigUpdate?.(configs);
-  };
-
-  const handleAddButton = () => {
-    if (!selectedConfig || !editingResponse || !newButton.label?.trim()) {
-      toast({
-        title: "Invalid button",
-        description: "Please select a response and enter a button label.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (editingResponse.buttons && editingResponse.buttons.length >= settings.maxButtons) {
-      toast({
-        title: "Maximum buttons reached",
-        description: `Maximum ${settings.maxButtons} buttons allowed per response.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const button: QuickReplyButton = {
-      id: Date.now().toString(),
-      label: newButton.label.trim(),
-      action: newButton.action || 'custom',
-      value: newButton.value
-    };
-
-    const updatedResponse = {
-      ...editingResponse,
-      buttons: [...(editingResponse.buttons || []), button]
-    };
-
-    const updatedConfig = {
-      ...selectedConfig,
-      responses: selectedConfig.responses.map(r => 
-        r.id === editingResponse.id ? updatedResponse : r
-      )
-    };
-
-    setConfigs(configs.map(c => c.id === selectedConfig.id ? updatedConfig : c));
-    setSelectedConfig(updatedConfig);
-    setNewButton({});
-    onConfigUpdate?.(configs);
-  };
-
-  const handleEditConfig = (config: KeywordConfig) => {
-    setSelectedConfig(config);
-    setIsEditing(true);
-  };
-
-  const handleDeleteConfig = (configId: string) => {
-    try {
-      const config = configs.find(c => c.id === configId);
-      if (config?.isDefault) {
-        toast({
-          title: "Cannot delete default config",
-          description: "Default configurations cannot be deleted.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const updatedConfigs = configs.filter(c => c.id !== configId);
-      setConfigs(updatedConfigs);
-      onConfigUpdate?.(updatedConfigs);
     } catch (error) {
       toast({
-        title: "Error deleting config",
-        description: error instanceof Error ? error.message : "Failed to delete configuration.",
+        title: "Error adding keyword",
+        description: error instanceof Error ? error.message : "Failed to add keyword configuration.",
         variant: "destructive",
       });
     }
   };
 
-  const handleUpdateConfig = () => {
-    if (!selectedConfig) return;
-
+  const handleUpdateConfig = async (config: KeywordConfig) => {
     try {
-      const updatedConfigs = configs.map(c => 
-        c.id === selectedConfig.id ? selectedConfig : c
-      );
-      setConfigs(updatedConfigs);
-      setIsEditing(false);
-      onConfigUpdate?.(updatedConfigs);
+      const service = AutoReplyService.getInstance();
+      await service.updateKeywordConfig(config);
+      setConfigs(service.getKeywordConfigs());
+      toast({
+        title: "Configuration updated",
+        description: "Keyword configuration has been updated successfully.",
+      });
     } catch (error) {
       toast({
-        title: "Error updating config",
+        title: "Error updating configuration",
         description: error instanceof Error ? error.message : "Failed to update configuration.",
         variant: "destructive",
       });
     }
   };
 
-  const handleUpdateSettings = (newSettings: Partial<AutoReplySettings>) => {
+  const handleDeleteConfig = async (configId: string) => {
     try {
+      const service = AutoReplyService.getInstance();
+      await service.deleteKeywordConfig(configId);
+      setConfigs(service.getKeywordConfigs());
+      toast({
+        title: "Configuration deleted",
+        description: "Keyword configuration has been deleted successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error deleting configuration",
+        description: error instanceof Error ? error.message : "Failed to delete configuration.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddVariation = async () => {
+    if (!selectedConfig || !newVariation.trim()) return;
+
+    try {
+      const updatedConfig = {
+        ...selectedConfig,
+        variations: [
+          ...selectedConfig.variations,
+          { id: Date.now().toString(), text: newVariation.trim() }
+        ]
+      };
+
+      await handleUpdateConfig(updatedConfig);
+      setNewVariation('');
+    } catch (error) {
+      toast({
+        title: "Error adding variation",
+        description: error instanceof Error ? error.message : "Failed to add variation.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddResponse = async () => {
+    if (!selectedConfig || !newResponse.trim()) return;
+
+    try {
+      const updatedConfig = {
+        ...selectedConfig,
+        responses: [
+          ...selectedConfig.responses,
+          {
+            id: Date.now().toString(),
+            text: newResponse.trim(),
+            language: selectedLanguage,
+            buttons: []
+          }
+        ]
+      };
+
+      await handleUpdateConfig(updatedConfig);
+      setNewResponse('');
+    } catch (error) {
+      toast({
+        title: "Error adding response",
+        description: error instanceof Error ? error.message : "Failed to add response.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateSettings = async (newSettings: Partial<AutoReplySettings>) => {
+    try {
+      const service = AutoReplyService.getInstance();
       const updatedSettings = { ...settings, ...newSettings };
+      await service.updateSettings(updatedSettings);
       setSettings(updatedSettings);
-      autoReplyService.updateSettings(updatedSettings);
       toast({
         title: "Settings updated",
         description: "Auto reply settings have been updated successfully.",
@@ -243,11 +242,11 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
     }
   };
 
-  const handleGenerateVariations = async (response: KeywordResponse) => {
-    if (!response.text.trim()) {
+  const handleGenerateVariations = async () => {
+    if (!selectedConfig) {
       toast({
-        title: "No text to generate variations",
-        description: "Please enter some text first.",
+        title: "No keyword selected",
+        description: "Please select a keyword to generate variations.",
         variant: "destructive",
       });
       return;
@@ -255,31 +254,24 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
 
     setIsGeneratingVariations(true);
     try {
-      const variations = await aiService.generateVariations(
-        response.text,
-        response.language
-      );
+      const variations = await aiService.generateVariations(selectedConfig.keyword, selectedLanguage);
+      const updatedConfig = {
+        ...selectedConfig,
+        variations: [
+          ...selectedConfig.variations,
+          ...variations.map(text => ({ id: Date.now().toString() + Math.random(), text }))
+        ]
+      };
 
-      if (variations.length > 0) {
-        const newVariations = variations.map((text, index) => ({
-          id: Date.now().toString() + index,
-          text
-        }));
-
-        if (selectedConfig) {
-          const updatedConfig = {
-            ...selectedConfig,
-            variations: [...selectedConfig.variations, ...newVariations]
-          };
-          setSelectedConfig(updatedConfig);
-          setConfigs(configs.map(c => c.id === selectedConfig.id ? updatedConfig : c));
-          onConfigUpdate?.(configs);
-        }
-      }
+      await handleUpdateConfig(updatedConfig);
+      toast({
+        title: "Variations generated",
+        description: "AI-generated variations have been added to the keyword.",
+      });
     } catch (error) {
       toast({
         title: "Error generating variations",
-        description: "Failed to generate variations. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate variations.",
         variant: "destructive",
       });
     } finally {
@@ -287,50 +279,90 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
     }
   };
 
-  const handlePreviewResponse = (response: KeywordResponse) => {
-    setPreviewResponse(response);
+  const handlePreviewResponse = async (response: KeywordResponse) => {
+    try {
+      const context = `Keyword: ${selectedConfig?.keyword}\nLanguage: ${response.language}`;
+      const preview = await aiService.generateResponse(response.text, context, response.language);
+      setPreviewResponse({ ...response, text: preview });
+    } catch (error) {
+      console.error('Error previewing response:', error);
+    }
   };
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Auto Reply Configuration</h2>
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Auto Reply Settings</DialogTitle>
+              <DialogDescription>
+                Configure general settings for the auto reply system.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="enabled">Enable Auto Reply</Label>
+                <Switch
+                  id="enabled"
+                  checked={settings.isEnabled}
+                  onCheckedChange={(checked) => handleUpdateSettings({ isEnabled: checked })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="defaultLanguage">Default Language</Label>
+                <Select
+                  value={settings.defaultLanguage}
+                  onValueChange={(value) => handleUpdateSettings({ defaultLanguage: value as Language })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AVAILABLE_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="caseSensitive">Case Sensitive</Label>
+                <Switch
+                  id="caseSensitive"
+                  checked={settings.caseSensitive}
+                  onCheckedChange={(checked) => handleUpdateSettings({ caseSensitive: checked })}
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Auto Reply Settings</CardTitle>
+          <CardTitle>Add New Keyword</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="enabled">Enable Auto Reply</Label>
-            <Switch
-              id="enabled"
-              checked={settings.isEnabled}
-              onCheckedChange={(checked) => handleUpdateSettings({ isEnabled: checked })}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="caseSensitive">Case Sensitive</Label>
-            <Switch
-              id="caseSensitive"
-              checked={settings.caseSensitive}
-              onCheckedChange={(checked) => handleUpdateSettings({ caseSensitive: checked })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="defaultLanguage">Default Language</Label>
-            <Select
-              value={settings.defaultLanguage}
-              onValueChange={(value: Language) => handleUpdateSettings({ defaultLanguage: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AVAILABLE_LANGUAGES.map((lang) => (
-                  <SelectItem key={lang} value={lang}>
-                    {lang}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <CardContent>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <Input
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                placeholder="Enter keyword..."
+              />
+            </div>
+            <Button onClick={handleAddConfig}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Keyword
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -339,271 +371,125 @@ export const KeywordConfigManager: React.FC<KeywordConfigManagerProps> = ({ onCo
         <CardHeader>
           <CardTitle>Keyword Configurations</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label htmlFor="newKeyword">New Keyword</Label>
-              <Input
-                id="newKeyword"
-                value={newKeyword}
-                onChange={(e) => setNewKeyword(e.target.value)}
-                placeholder="Enter keyword"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={handleAddConfig}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Keyword
-              </Button>
-            </div>
-          </div>
-
-          {configs.map((config) => (
-            <Card key={config.id} className="p-4">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-semibold">{config.keyword}</h3>
-                  <p className="text-sm text-gray-500">
-                    {config.variations.length} variations
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {!config.isDefault && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteConfig(config.id)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    onClick={() => handleEditConfig(config)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {isEditing && selectedConfig?.id === config.id && (
-                <div className="space-y-4">
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <Label>Variations</Label>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Keyword</TableHead>
+                <TableHead>Variations</TableHead>
+                <TableHead>Responses</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {configs.map((config) => (
+                <TableRow key={config.id}>
+                  <TableCell>{config.keyword}</TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      {config.variations.map((variation) => (
+                        <div key={variation.id} className="text-sm">
+                          {variation.text}
+                        </div>
+                      ))}
                       <div className="flex gap-2">
                         <Input
                           value={newVariation}
                           onChange={(e) => setNewVariation(e.target.value)}
-                          placeholder="Add variation"
+                          placeholder="Add variation..."
+                          className="h-8"
                         />
-                        <Button onClick={handleAddVariation}>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedConfig(config);
+                            handleAddVariation();
+                          }}
+                        >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {config.variations.map((variation) => (
-                          <span
-                            key={variation.id}
-                            className="px-2 py-1 bg-gray-100 rounded text-sm"
-                          >
-                            {variation.text}
-                          </span>
-                        ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      {config.responses.map((response) => (
+                        <div key={response.id} className="text-sm">
+                          <div className="font-medium">{response.language}</div>
+                          <div>{response.text}</div>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Textarea
+                          value={newResponse}
+                          onChange={(e) => setNewResponse(e.target.value)}
+                          placeholder="Add response..."
+                          className="h-20"
+                        />
+                        <Select
+                          value={selectedLanguage}
+                          onValueChange={(value) => setSelectedLanguage(value as Language)}
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AVAILABLE_LANGUAGES.map((lang) => (
+                              <SelectItem key={lang} value={lang}>
+                                {lang}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedConfig(config);
+                            handleAddResponse();
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <Label>Responses</Label>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Language</TableHead>
-                          <TableHead>Response</TableHead>
-                          <TableHead>Quick Reply Buttons</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {config.responses.map((response) => (
-                          <TableRow key={response.id}>
-                            <TableCell>
-                              <Select
-                                value={response.language}
-                                onValueChange={(value: Language) => {
-                                  const updatedResponse = {
-                                    ...response,
-                                    language: value
-                                  };
-                                  setSelectedConfig({
-                                    ...selectedConfig,
-                                    responses: selectedConfig.responses.map(r =>
-                                      r.id === response.id ? updatedResponse : r
-                                    )
-                                  });
-                                }}
-                              >
-                                <SelectTrigger className="w-[150px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {AVAILABLE_LANGUAGES.map((lang) => (
-                                    <SelectItem key={lang} value={lang}>
-                                      {lang}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Textarea
-                                value={response.text}
-                                onChange={(e) => {
-                                  const updatedResponse = {
-                                    ...response,
-                                    text: e.target.value
-                                  };
-                                  setSelectedConfig({
-                                    ...selectedConfig,
-                                    responses: selectedConfig.responses.map(r =>
-                                      r.id === response.id ? updatedResponse : r
-                                    )
-                                  });
-                                }}
-                                placeholder="Enter response text"
-                                maxLength={settings.maxResponseLength}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-2">
-                                <div className="flex gap-2">
-                                  <Input
-                                    value={newButton.label || ''}
-                                    onChange={(e) => setNewButton({ ...newButton, label: e.target.value })}
-                                    placeholder="Button label"
-                                    maxLength={20}
-                                  />
-                                  <Select
-                                    value={newButton.action || 'custom'}
-                                    onValueChange={(value: 'optin' | 'optout' | 'custom') =>
-                                      setNewButton({ ...newButton, action: value })
-                                    }
-                                  >
-                                    <SelectTrigger className="w-[150px]">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="custom">Custom</SelectItem>
-                                      <SelectItem value="optin">Opt-in</SelectItem>
-                                      <SelectItem value="optout">Opt-out</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Button onClick={handleAddButton}>
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {response.buttons?.map((button) => (
-                                    <span
-                                      key={button.id}
-                                      className="px-2 py-1 bg-gray-100 rounded text-sm"
-                                    >
-                                      {button.label} ({button.action})
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleGenerateVariations(response)}
-                                  disabled={isGeneratingVariations}
-                                >
-                                  <Wand2 className="h-4 w-4 mr-1" />
-                                  Generate Variations
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handlePreviewResponse(response)}
-                                >
-                                  <MessageSquare className="h-4 w-4 mr-1" />
-                                  Preview
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsEditing(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleUpdateConfig}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          ))}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={config.isEnabled}
+                      onCheckedChange={(checked) => {
+                        handleUpdateConfig({ ...config, isEnabled: checked });
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedConfig(config);
+                          handleGenerateVariations();
+                        }}
+                        disabled={isGeneratingVariations}
+                      >
+                        <Wand2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteConfig(config.id)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
-
-      {previewResponse && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Response Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label>Language</Label>
-                <p className="text-sm text-muted-foreground">{previewResponse.language}</p>
-              </div>
-              <div>
-                <Label>Message</Label>
-                <p className="text-sm">{previewResponse.text}</p>
-              </div>
-              {previewResponse.buttons && previewResponse.buttons.length > 0 && (
-                <div>
-                  <Label>Quick Reply Buttons</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {previewResponse.buttons.map((button) => (
-                      <Button
-                        key={button.id}
-                        variant="outline"
-                        size="sm"
-                      >
-                        {button.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <Button
-                variant="ghost"
-                onClick={() => setPreviewResponse(null)}
-                className="mt-4"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Close Preview
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }; 

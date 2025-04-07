@@ -1,13 +1,16 @@
-export type Language = 
-  | "English" 
-  | "Hindi" 
-  | "Tamil" 
-  | "Mandarin" 
-  | "Thai" 
-  | "Arabic" 
-  | "Spanish" 
-  | "Portuguese" 
-  | "French";
+export type Language = 'English' | 'Hindi' | 'Spanish' | 'French' | 'German';
+
+export type TemplateLayout = 
+  | 'text'
+  | 'single-product'
+  | 'multi-product'
+  | 'catalog'
+  | 'order-details'
+  | 'order-status'
+  | 'rich-media'
+  | 'quick-reply'
+  | 'carousel'
+  | 'authentication';
 
 export type MessageType = "text" | "quick_reply";
 
@@ -57,4 +60,97 @@ export interface APIPayload {
     user_agent: string;
     ip: string;
   }[];
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'bot';
+  timestamp: string;
+  templateId?: string;
+}
+
+export interface Conversation {
+  id: string;
+  customerId: string;
+  customerName: string;
+  lastMessage: string;
+  timestamp: number;
+  status: 'active' | 'resolved' | 'archived';
+}
+
+export interface ConversationMessage {
+  id: string;
+  text: string;
+  sender: 'customer' | 'business';
+  timestamp: number;
+  type: 'text' | 'image' | 'video' | 'audio' | 'document';
+}
+
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  details?: any;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  content: string;
+  type: 'text' | 'media' | 'interactive';
+  language: Language;
+  layout: TemplateLayout;
+  variables: Variable[];
+  products?: Product[];
+  catalogId?: string;
+  orderId?: string;
+  mediaUrl?: string;
+  buttons?: Button[];
+  cards?: Card[];
+  otpCode?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  imageUrl: string;
+}
+
+export interface Button {
+  id: string;
+  text: string;
+  type: 'reply' | 'url' | 'phone';
+  value: string;
+}
+
+export interface Card {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  buttons: Button[];
+}
+
+export interface TemplateSection {
+  type: string;
+  text: string;
+  variables: Variable[];
+}
+
+export type VariableType = 'text' | 'number' | 'date' | 'currency' | 'url';
+
+export interface Variable {
+  name: string;
+  type: VariableType;
+  defaultValue?: string;
+  required: boolean;
 } 

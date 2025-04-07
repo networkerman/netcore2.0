@@ -1,15 +1,20 @@
 import { KeywordConfig, KeywordResponse, Language, MessageType, AutoReplySettings, QuickReplyButton } from '../types';
 import { OptService } from './opt-service';
+import { AIService } from './ai-service';
 
 export class AutoReplyService {
+  private static instance: AutoReplyService;
   private keywordConfigs: KeywordConfig[] = [];
   private defaultConfig?: KeywordConfig;
   private settings: AutoReplySettings;
   private readonly STORAGE_KEY = 'auto_reply_configs';
   private readonly SETTINGS_KEY = 'auto_reply_settings';
   private optService: OptService;
+  private aiService: AIService;
+  private initialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
 
-  constructor() {
+  private constructor() {
     this.settings = {
       isEnabled: true,
       defaultLanguage: 'English',
@@ -19,14 +24,65 @@ export class AutoReplyService {
       maxResponseLength: 1024
     };
     this.optService = new OptService();
-    this.initialize();
-    this.loadConfigs();
-    this.loadSettings();
+    this.aiService = new AIService();
   }
 
-  initialize() {
-    // Load default configurations
-    this.keywordConfigs = [
+  public static getInstance(): AutoReplyService {
+    if (!AutoReplyService.instance) {
+      AutoReplyService.instance = new AutoReplyService();
+    }
+    return AutoReplyService.instance;
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initializationPromise) return this.initializationPromise;
+
+    this.initializationPromise = (async () => {
+      try {
+        // Load configurations and settings
+        await this.loadConfigs();
+        await this.loadSettings();
+
+        // Initialize default configurations if none exist
+        if (this.keywordConfigs.length === 0) {
+          await this.initializeDefaultConfigs();
+        } else {
+          // Set default config from existing configs
+          this.defaultConfig = this.keywordConfigs.find(c => c.isDefault) || this.keywordConfigs[0];
+        }
+
+        this.initialized = true;
+      } catch (error) {
+        console.error('Error initializing AutoReplyService:', error);
+        throw new Error('Failed to initialize Auto Reply service');
+      } finally {
+        this.initializationPromise = null;
+      }
+    })();
+
+    return this.initializationPromise;
+  }
+
+  private async initializeDefaultConfigs() {
+    this.defaultConfig = {
+      id: 'default',
+      keyword: 'default',
+      variations: [],
+      responses: [
+        {
+          id: 'default-response',
+          text: 'Thank you for your message. We will get back to you soon.',
+          language: 'English' as Language,
+          buttons: []
+        }
+      ],
+      isDefault: true,
+      isEnabled: true
+    };
+
+    const defaultConfigs: KeywordConfig[] = [
+      this.defaultConfig,
       {
         id: 'stop',
         keyword: 'stop',
@@ -37,34 +93,22 @@ export class AutoReplyService {
         ],
         responses: [
           {
-            id: 'stop_resp',
-            language: "English",
-            text: 'You have been unsubscribed from our messages. To subscribe again, send "start".',
+            id: 'stop_response',
+            text: 'You have been unsubscribed from our messages. To subscribe again, please send "start".',
+            language: 'English' as Language,
             buttons: []
           }
-        ]
-      },
-      {
-        id: 'start',
-        keyword: 'start',
-        variations: [
-          { id: 'start1', text: 'start' },
-          { id: 'start2', text: 'subscribe' },
-          { id: 'start3', text: 'optin' }
         ],
-        responses: [
-          {
-            id: 'start_resp',
-            language: "English",
-            text: 'Welcome! You are now subscribed to our messages. Send "stop" to unsubscribe.',
-            buttons: []
-          }
-        ]
+        isDefault: true,
+        isEnabled: true
       }
     ];
+
+    this.keywordConfigs = defaultConfigs;
+    await this.saveConfigs();
   }
 
-  private loadConfigs() {
+  private async loadConfigs() {
     try {
       const savedConfigs = localStorage.getItem(this.STORAGE_KEY);
       if (savedConfigs) {
@@ -78,7 +122,7 @@ export class AutoReplyService {
     }
   }
 
-  private loadSettings() {
+  private async loadSettings() {
     try {
       const savedSettings = localStorage.getItem(this.SETTINGS_KEY);
       if (savedSettings) {
@@ -89,7 +133,7 @@ export class AutoReplyService {
     }
   }
 
-  private saveConfigs() {
+  private async saveConfigs() {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.keywordConfigs));
     } catch (error) {
@@ -97,7 +141,7 @@ export class AutoReplyService {
     }
   }
 
-  private saveSettings() {
+  private async saveSettings() {
     try {
       localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(this.settings));
     } catch (error) {
@@ -105,60 +149,38 @@ export class AutoReplyService {
     }
   }
 
-  public addKeywordConfig(config: KeywordConfig): void {
-    if (!this.settings.isEnabled) return;
-    
-    // Validate config
-    if (config.variations.length > this.settings.maxVariations) {
-      throw new Error(`Maximum ${this.settings.maxVariations} variations allowed per keyword`);
-    }
+  public getKeywordConfigs(): KeywordConfig[] {
+    return [...this.keywordConfigs];
+  }
 
-    // Validate responses
-    config.responses.forEach(response => {
-      if (response.text.length > this.settings.maxResponseLength) {
-        throw new Error(`Response text exceeds maximum length of ${this.settings.maxResponseLength} characters`);
-      }
-      if (response.buttons && response.buttons.length > this.settings.maxButtons) {
-        throw new Error(`Maximum ${this.settings.maxButtons} buttons allowed per response`);
-      }
-    });
-
+  public async addKeywordConfig(config: KeywordConfig): Promise<void> {
     this.keywordConfigs.push(config);
-    this.saveConfigs();
+    await this.saveConfigs();
   }
 
-  public removeKeywordConfig(configId: string): void {
-    if (!this.settings.isEnabled) return;
-    const config = this.keywordConfigs.find(c => c.id === configId);
-    if (config?.isDefault) {
-      throw new Error('Cannot remove default configurations');
-    }
-    this.keywordConfigs = this.keywordConfigs.filter(config => config.id !== configId);
-    this.saveConfigs();
-  }
-
-  public updateKeywordConfig(config: KeywordConfig): void {
-    if (!this.settings.isEnabled) return;
-    
-    // Validate config
-    if (config.variations.length > this.settings.maxVariations) {
-      throw new Error(`Maximum ${this.settings.maxVariations} variations allowed per keyword`);
-    }
-
-    // Validate responses
-    config.responses.forEach(response => {
-      if (response.text.length > this.settings.maxResponseLength) {
-        throw new Error(`Response text exceeds maximum length of ${this.settings.maxResponseLength} characters`);
-      }
-      if (response.buttons && response.buttons.length > this.settings.maxButtons) {
-        throw new Error(`Maximum ${this.settings.maxButtons} buttons allowed per response`);
-      }
-    });
-
+  public async updateKeywordConfig(config: KeywordConfig): Promise<void> {
     const index = this.keywordConfigs.findIndex(c => c.id === config.id);
     if (index !== -1) {
       this.keywordConfigs[index] = config;
-      this.saveConfigs();
+      await this.saveConfigs();
+    }
+  }
+
+  public async deleteKeywordConfig(configId: string): Promise<void> {
+    this.keywordConfigs = this.keywordConfigs.filter(c => c.id !== configId);
+    await this.saveConfigs();
+  }
+
+  public async generateVariations(keyword: string, language: Language = 'English'): Promise<{ id: string; text: string }[]> {
+    try {
+      const variations = await this.aiService.generateVariations(keyword, language, this.settings.maxVariations);
+      return variations.map((text, index) => ({
+        id: `${keyword}-var-${index + 1}`,
+        text
+      }));
+    } catch (error) {
+      console.error('Error generating variations:', error);
+      return [];
     }
   }
 
@@ -204,30 +226,17 @@ export class AutoReplyService {
     return this.defaultConfig!.responses[0];
   }
 
-  public getKeywordConfigs(): KeywordConfig[] {
-    return [...this.keywordConfigs];
-  }
-
-  public getDefaultConfig(): KeywordConfig | undefined {
-    return this.defaultConfig;
-  }
-
   public getSettings(): AutoReplySettings {
     return { ...this.settings };
   }
 
-  public updateSettings(settings: Partial<AutoReplySettings>): void {
+  public async updateSettings(settings: Partial<AutoReplySettings>): Promise<void> {
     this.settings = { ...this.settings, ...settings };
-    this.saveSettings();
+    await this.saveSettings();
   }
 
   public isEnabled(): boolean {
     return this.settings.isEnabled;
-  }
-
-  public setEnabled(enabled: boolean): void {
-    this.settings.isEnabled = enabled;
-    this.saveSettings();
   }
 
   public async handleButtonAction(button: QuickReplyButton, phoneNumber: string): Promise<void> {

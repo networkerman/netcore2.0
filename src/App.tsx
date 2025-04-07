@@ -11,6 +11,8 @@ import Segmentation from "./pages/Segmentation";
 import Settings from "./pages/Settings";
 import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
+import { ChatPage } from './pages/Chat';
+import { QAPage } from './pages/QA';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,8 @@ const App = () => (
             <Route path="templates" element={<Templates />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/qa" element={<QAPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

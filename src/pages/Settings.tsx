@@ -28,12 +28,25 @@ const Settings = () => {
   const [metaIntegration, setMetaIntegration] = useState(true);
   const [googleIntegration, setGoogleIntegration] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
-  const autoReplyService = new AutoReplyService();
+  const [isInitialized, setIsInitialized] = useState(false);
   
   useEffect(() => {
     // Initialize Auto Reply service
-    autoReplyService.initialize();
-  }, []);
+    const initializeService = async () => {
+      try {
+        await AutoReplyService.getInstance().initialize();
+        setIsInitialized(true);
+      } catch (error) {
+        toast({
+          title: "Error initializing settings",
+          description: error instanceof Error ? error.message : "Failed to initialize settings.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    initializeService();
+  }, [toast]);
   
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,16 +56,33 @@ const Settings = () => {
     });
   };
 
-  const handleConfigUpdate = (configs: any[]) => {
-    // Save the updated configurations
-    configs.forEach(config => {
-      autoReplyService.updateKeywordConfig(config);
-    });
-    toast({
-      title: "Auto Reply settings updated",
-      description: "Your auto reply configurations have been saved.",
-    });
+  const handleConfigUpdate = async (configs: any[]) => {
+    try {
+      // Save the updated configurations
+      await Promise.all(configs.map(config => AutoReplyService.getInstance().updateKeywordConfig(config)));
+      toast({
+        title: "Auto Reply settings updated",
+        description: "Your auto reply configurations have been saved.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error updating settings",
+        description: error instanceof Error ? error.message : "Failed to update auto reply configurations.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-6">
