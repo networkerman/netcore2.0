@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
-import { Bot, User, Image, ShoppingCart, FileText, Mail, Phone } from 'lucide-react';
+import { Bot, Image, ShoppingCart, FileText, Mail, Phone } from 'lucide-react';
 
 interface ChatPreviewProps {
   onSendTest?: (templateId: string, data: Record<string, string>) => Promise<void>;
 }
 
-export const ChatPreview: React.FC<ChatPreviewProps> = ({ onSendTest }) => {
+const ChatPreview: React.FC<ChatPreviewProps> = ({ onSendTest }) => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
@@ -132,13 +132,7 @@ export const ChatPreview: React.FC<ChatPreviewProps> = ({ onSendTest }) => {
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Preview</label>
-            <div className="border rounded-lg p-4 space-y-4">
-              <div className="flex items-start space-x-2">
-                <User className="h-6 w-6 text-gray-500" />
-                <div className="bg-gray-100 rounded-lg p-3">
-                  <p className="text-sm">Sample user message</p>
-                </div>
-              </div>
+            <div className="border rounded-lg p-4">
               <div className="flex items-start space-x-2">
                 <Bot className="h-6 w-6 text-blue-500" />
                 <div className="bg-blue-100 rounded-lg p-3">
@@ -181,4 +175,6 @@ export const ChatPreview: React.FC<ChatPreviewProps> = ({ onSendTest }) => {
       )}
     </Card>
   );
-}; 
+};
+
+export default ChatPreview; 
